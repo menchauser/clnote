@@ -4,6 +4,6 @@
   :author "Mukhamed Karanashev <menchauser@gmail.com>"
   :license "MIT License"
   :depends-on ("local-time"
-			   "uiop")
+               "uiop")
   :components ((:file "package")))
   
