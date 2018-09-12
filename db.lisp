@@ -1,10 +1,10 @@
-(defpackage :clnote
+(defpackage :clnote/db
   (:use :common-lisp
         :local-time
         :uiop)
   (:export :main))
 
-(in-package :clnote)
+(in-package :clnote/db)
 
 (local-time:enable-read-macros)
 
@@ -76,9 +76,3 @@
                       :direction :input
                       :if-does-not-exist :error)
     (setf *notes* (read in))))
-
-
-;; main
-(defun main ()
-  (format t "Hello~%")
-  (format t "~a~%" uiop:*command-line-arguments*))
