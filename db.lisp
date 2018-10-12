@@ -1,7 +1,6 @@
 (defpackage :clnote/db
   (:use :common-lisp
-        :local-time
-        :uiop)
+        :local-time)
   (:export :main))
 
 (in-package :clnote/db)
@@ -45,6 +44,7 @@
             (getf tag :tag)
             (getf tag :count))))
 
+;; output 
 (defun view-notes (tag)
   "View all notes for specific tag."
   (let ((notes (reverse (get-notes tag)))
@@ -55,10 +55,9 @@
               (incf count)
               (getf note :text)))))
 
-;; output 
-(defun dump-notes (notes)
+(defun dump-notes ()
   "Dump notes in debug format."
-  (dolist (note notes)
+  (dolist (note *notes*)
     (format t "~{~a:~12t~a~%~}~%" note)))
 
 

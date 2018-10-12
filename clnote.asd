@@ -3,7 +3,6 @@
   :version "0.1.0"
   :author "Mukhamed Karanashev <menchauser@gmail.com>"
   :license "MIT License"
-  :depends-on ("local-time"
-               "uiop")
+  :depends-on ("local-time")
   :components ((:file "db")))
   
