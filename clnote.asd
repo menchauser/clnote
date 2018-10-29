@@ -3,7 +3,8 @@
   :version "0.1.0"
   :author "Mukhamed Karanashev <menchauser@gmail.com>"
   :license "MIT License"
-  :depends-on ("local-time")
+  :depends-on ("local-time"
+               "unix-opts")
   :serial t
   :components ((:file "db")
                (:file "app"))

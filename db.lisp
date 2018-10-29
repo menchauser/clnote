@@ -1,12 +1,11 @@
 (defpackage :clnote/db
+  (:nicknames :db)
   (:use :common-lisp
         :local-time)
   (:export :make-note
            :add-note
            :get-tags
            :get-notes
-           :print-tags
-           :print-notes
            :store-notes
            :load-notes))
 
@@ -44,12 +43,6 @@ By default TIMESTAMP is now."
          (unique-tags (remove-duplicates tags)))
     (mapcar (lambda (x) (list :tag x :count (count x tags))) unique-tags)))
 
-(defun print-tags ()
-  "Print available tags."
-  (dolist (tag (get-tags))
-    (format t "  * ~(~a~) (~D)~%"
-            (getf tag :tag)
-            (getf tag :count))))
 
 
 (defun clear-notes ()
@@ -57,16 +50,6 @@ By default TIMESTAMP is now."
 
 
 ;; output 
-(defun print-notes (tag)
-  "View all notes for specific tag."
-  (let ((notes (reverse (get-notes tag)))
-        (count -1))
-    (format t "  * on book ~(~a~)~%" tag)
-    (dolist (note notes)
-      (format t "  (~D) ~a~%"
-              (incf count)
-              (getf note :text)))))
-
 (defun dump-notes ()
   "Dump notes in debug format."
   (dolist (note *notes*)
@@ -87,6 +70,7 @@ By default TIMESTAMP is now."
   "Loads notes from given path."
   (with-open-file (in path
                       :direction :input
-                      :if-does-not-exist :error)
-    (setf *notes* (read in)))
+                      :if-does-not-exist nil)
+    (when in
+      (setf *notes* (read in))))
   *notes*)
