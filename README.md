@@ -1,4 +1,12 @@
- ## Overview
+## Overview
  
- This is intended to be a simple clone of https://github.com/dnote/cli
+This is intended to be a simple clone of https://github.com/dnote/cli
  
+
+## Build
+
+Run
+```
+make build
+```
+
