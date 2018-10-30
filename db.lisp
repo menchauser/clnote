@@ -32,9 +32,9 @@ By default TIMESTAMP is now."
   (push note *notes*)
   note)
 
-(defun get-notes (tag)
+(defun get-notes (topic)
   "Get all notes for specific tag."
-  (remove-if-not (lambda (note) (equal tag (getf note :tag))) *notes*))
+  (remove-if-not (lambda (note) (equal topic (getf note :tag))) *notes*))
 
 
 (defun get-tags ()
@@ -71,6 +71,7 @@ By default TIMESTAMP is now."
   (with-open-file (in path
                       :direction :input
                       :if-does-not-exist nil)
-    (when in
-      (setf *notes* (read in))))
+    (if in
+        (setf *notes* (read in))
+        (setf *notes* nil)))
   *notes*)
