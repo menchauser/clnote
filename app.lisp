@@ -8,9 +8,6 @@
 (in-package :clnote/app)
 
 
-(defparameter default-notes-path
-  (merge-pathnames #P".clnote/notes"
-                   (user-homedir-pathname)))
 
 (defparameter default-clnote-name "clnote")
 
@@ -63,8 +60,10 @@
       (print-view-usage))
     (let ((topic-str (first free-args)))
       (declare (type (or string null) topic-str))
-      (db:load-notes default-notes-path)
-      (if topic-str
+      (db:load-notes)
+      ;; add args check because when args are NIL
+      ;; unix-opts is going to implicitly use unix-opts:argv
+      (if (and args topic-str)
           (print-notes (read-from-string topic-str))
           (print-topics)))))
 
@@ -75,10 +74,10 @@
   (format t "Usage:~%")
   (format t "  ~A add <topic name> -c <content>~%~%" default-clnote-name)
   (format t "Aliases:~%")
-  (format t "  add, a, new, n")
+  (format t "  add, a, new, n~%~%")
   (format t "Examples:~%~%")
   (format t "  * Add a simple note~%")
-  (format t "  ~A add lisp -c \"to parse multiple return values from a function use 'multiple-values-bind' \"~%" default-clnote-name)) 
+  (format t "  ~A add lisp -c \"to parse multiple return values from a function use 'multiple-values-bind'\"~%" default-clnote-name)) 
 
 
 (defun run-add (&rest args)
@@ -106,9 +105,9 @@
         (unless (symbolp topic)
           (format t "  * Incorrect format of topic argument~%")
           (return-from run-add))
-        (load-notes default-notes-path)
+        (load-notes)
         (add-note (make-note topic content))
-        (store-notes default-notes-path)
+        (store-notes)
         (format t "  v added to ~A~%~%" topic-arg)
         (format t "--------------------content--------------------~%")
         (format t "~A~%" content)
