@@ -5,8 +5,9 @@
   (:export :default-notes-path
            :make-note
            :add-note
-           :get-tags
+           :get-topics
            :get-notes
+           :remove-notes
            :store-notes
            :load-notes))
 
@@ -23,12 +24,12 @@
 
 
 ;; constructors
-(defun make-note (tag
+(defun make-note (topic
                   note
                   &optional (timestamp (local-time:now)))
   "Constructs new note object for given parameters.
 By default TIMESTAMP is now."
-  (list :tag tag
+  (list :topic topic
         :timestamp timestamp
         :text note))
 
@@ -37,17 +38,26 @@ By default TIMESTAMP is now."
   (push note *notes*)
   note)
 
+
 (defun get-notes (topic)
-  "Get all notes for specific tag."
-  (remove-if-not (lambda (note) (equal topic (getf note :tag))) *notes*))
+  "Get all notes for specific topic."
+  (remove-if-not (lambda (note) (equal topic (getf note :topic))) *notes*))
 
 
-(defun get-tags ()
-  "Get unique tag names and count of notes for each tag."
-  (let* ((tags (mapcar (lambda (x) (getf x :tag)) *notes*))
-         (unique-tags (remove-duplicates tags)))
-    (mapcar (lambda (x) (list :tag x :count (count x tags))) unique-tags)))
+(defun get-topics ()
+  "Get unique topic names and count of notes for each topic."
+  (let* ((topics (mapcar (lambda (x) (getf x :topic)) *notes*))
+         (unique-topics (remove-duplicates topics)))
+    (mapcar (lambda (x) (list :topic x :count (count x topics))) unique-topics)))
 
+
+(defun remove-notes (topic)
+  "Remove notes for specific TOPIC."
+  (labels ((to-remove-p (x)
+             (eq topic (getf x :topic))))
+    (let ((count (count-if #'to-remove-p *notes*)))
+      (setf *notes* (remove-if #'to-remove-p *notes*))
+      count)))
 
 
 (defun clear-notes ()

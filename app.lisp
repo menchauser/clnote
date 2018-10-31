@@ -20,9 +20,9 @@
 ;; output utilities
 (defun print-topics ()
   "Print available topics."
-  (dolist (topic (db:get-tags))
+  (dolist (topic (db:get-topics))
     (format t "  * ~(~a~) (~D)~%"
-            (getf topic :tag)
+            (getf topic :topic)
             (getf topic :count))))
 
 
@@ -92,20 +92,19 @@
       ((getf options :all)
        (db:load-notes)
        (let ((started nil))
-         (dolist (topic-info (db:get-tags))
+         (dolist (topic-info (db:get-topics))
            (if (not started)
                (setf started t)
                (format t "~%"))
-           (print-notes (getf topic-info :tag) nil))))
+           (print-notes (getf topic-info :topics) nil))))
       (t 
-       (let ((topic-str (first free-args))
-             (topic-number (safe-read-from-string (second free-args))))
-         (declare (type (or string null) topic-str))
+       (let ((topic (safe-read-from-string (first free-args)))
+             (index (safe-read-from-string (second free-args))))
          (db:load-notes)
          ;; add args check because when args are NIL
          ;; unix-opts is going to implicitly use unix-opts:argv
-         (if (and args topic-str)
-             (print-notes (read-from-string topic-str) topic-number)
+         (if (and args topic)
+             (print-notes topic index)
              (print-topics)))))))
 
 
@@ -149,11 +148,66 @@
              (format t "  * Incorrect format of topic argument~%")
              (return-from run-add))
            (db:load-notes)
-           (add-note (make-note topic content))
-           (store-notes)
+           (db:add-note (db:make-note topic content))
+           (db:store-notes)
            (format t "  v added to ~A~%~%" topic-arg)
            (print-content content)))))))
-  
+
+
+;; remove
+(defun print-remove-usage ()
+  (format t "Remove a note or topic~%~%")
+  (format t "Usage:~%")
+  (format t "  ~A remove <topic name> <note index>~%" default-clnote-name)
+  (format t "  ~A remove -t <topic name>~%~%" default-clnote-name)
+  (format t "Aliases:~%")
+  (format t "  remove, rm, d, delete~%~%")
+  (format t "Examples:~%~%")
+  (format t "  * Delete a note by its index from a topic~%")
+  (format t "  ~A delete lisp 2~%~%" default-clnote-name)
+  (format t "  * Delete a whole topic~%")
+  (format t "  ~A delete -t lisp~%~%" default-clnote-name)
+  (format t "Flags:~%~%")
+  (format t "  -t, --topic string~22TTopic name to delete~%")
+  (format t "  -h, --help        ~22THelp for remove~%"))
+
+
+(defun run-remove (&rest args)
+  (opts:define-opts
+    (:name :help
+           :description "show help"
+           :short #\h
+           :long "help")
+    (:name :topic
+           :description "topic name to delete"
+           :short #\t
+           :long "topic"
+           :arg-parser #'read-from-string
+           :meta-var "TOPIC"))
+  (multiple-value-bind (options free-args)
+      (opts:get-opts args)
+    (cond
+      ((getf options :help)
+       (print-remove-usage))
+      ((getf options :topic)
+       (let ((topic (getf options :topic)))
+         (when (y-or-n-p "Are you sure want to remove whole topic ~(~A~)?" topic)
+           (db:load-notes)
+           (let ((removed-count (db:remove-notes topic)))
+             (db:store-notes)
+             (format t "Topic '~(~A~)' with ~A notes removed" topic removed-count)))))
+      (t
+       (let ((topic (safe-read-from-string (first free-args)))
+             (index (safe-read-from-string (second free-args))))
+         (if (and args
+                  (symbolp topic)
+                  (numberp index))
+             (progn
+               (when (y-or-n-p "Are you sure want to remove note ~A from topic ~(~A~)?" index topic)
+                 (db:load-notes)
+                 (db:store-notes)))
+             (format t "  * Incorrect number of arguments~%")))))))
+
 
 (defstruct command
   (id nil :read-only t :type symbol)
