@@ -2,7 +2,8 @@
   (:nicknames :db)
   (:use :common-lisp
         :local-time)
-  (:export :make-note
+  (:export :default-notes-path
+           :make-note
            :add-note
            :get-tags
            :get-notes
@@ -15,6 +16,10 @@
 
 
 (defvar *notes* nil)
+
+(defparameter default-notes-path
+  (merge-pathnames #P".clnote/notes"
+                   (user-homedir-pathname)))
 
 
 ;; constructors
@@ -57,7 +62,7 @@ By default TIMESTAMP is now."
 
 
 ;; save and load
-(defun store-notes (path)
+(defun store-notes (&optional (path default-notes-path))
   "Store notes to given path."
   (ensure-directories-exist path)
   (with-open-file (out path
@@ -66,7 +71,7 @@ By default TIMESTAMP is now."
     (pprint *notes* out))
   t)
 
-(defun load-notes (path)
+(defun load-notes (&optional (path default-notes-path))
   "Loads notes from given path."
   (with-open-file (in path
                       :direction :input

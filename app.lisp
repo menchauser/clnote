@@ -12,6 +12,12 @@
 (defparameter default-clnote-name "clnote")
 
 
+;;;; common utilities
+(defun safe-read-from-string (x)
+  (when x
+      (read-from-string x)))
+
+
 ;; output utilities
 (defun print-topics ()
   "Print available topics."
@@ -21,15 +27,34 @@
             (getf topic :count))))
 
 
-(defun print-notes (topic)
+(defun print-note (topic number)
+  (let* ((notes (reverse (db:get-notes topic)))
+         (note (nth number notes)))
+    (if note
+        (progn
+          (format t "  * topic name: ~(~a~)~%" topic)
+          (format t "  * created at: ~A~%~%" (getf note :timestamp))
+          (print-content (getf note :text)))
+        (format t "  * no note ~S in topic ~(~A~)~%" number topic))))
+
+
+(defun print-notes (topic number)
   "View all notes for specific topic."
-  (let ((notes (reverse (db:get-notes topic)))
-        (count -1))
-    (format t "  * on topic ~(~a~)~%" topic)
-    (dolist (note notes)
-      (format t "  (~D) ~a~%"
-              (incf count)
-              (getf note :text)))))
+  (cond (number (print-note topic number))
+        (t 
+         (let ((notes (reverse (db:get-notes topic)))
+               (count -1))
+           (format t "  * on topic ~(~a~)~%" topic)
+           (dolist (note notes)
+             (format t "  (~D) ~a~%"
+                     (incf count)
+                     (getf note :text)))))))
+
+
+(defun print-content (content) 
+  (format t "------------------------content------------------------~%")
+  (format t "~A~%" content)
+  (format t "-------------------------------------------------------~%"))
 
 
 ;;;; commands
@@ -45,7 +70,9 @@
   (format t "  * View all topics~%")
   (format t "  ~A view~%" default-clnote-name)
   (format t "  * List notes for a topic~%")
-  (format t "  ~A view lisp~%" default-clnote-name))
+  (format t "  ~A view lisp~%" default-clnote-name)
+  (format t "  * List all notes~%")
+  (format t "  ~A view --all~%" default-clnote-name))
 
 
 (defun run-view (&rest args)
@@ -53,18 +80,33 @@
     (:name :help
            :description "show help"
            :short #\h
-           :long "help"))
+           :long "help")
+    (:name :all
+           :description "view all notes"
+           :showrt #\a
+           :long "all"))
   (multiple-value-bind (options free-args)
       (opts:get-opts args)
     (when (getf options :help)
-      (print-view-usage))
-    (let ((topic-str (first free-args)))
+      (print-view-usage)
+      (return-from run-view))
+    (when (getf options :all)
+      (db:load-notes)
+      (let ((started nil))
+        (dolist (topic-info (db:get-tags))
+          (if (not started)
+              (setf started t)
+              (format t "~%"))
+          (print-notes (getf topic-info :tag) nil)))
+      (return-from run-view))
+    (let ((topic-str (first free-args))
+          (topic-number (safe-read-from-string (second free-args))))
       (declare (type (or string null) topic-str))
       (db:load-notes)
       ;; add args check because when args are NIL
       ;; unix-opts is going to implicitly use unix-opts:argv
       (if (and args topic-str)
-          (print-notes (read-from-string topic-str))
+          (print-notes (read-from-string topic-str) topic-number)
           (print-topics)))))
 
 
@@ -109,9 +151,7 @@
         (add-note (make-note topic content))
         (store-notes)
         (format t "  v added to ~A~%~%" topic-arg)
-        (format t "--------------------content--------------------~%")
-        (format t "~A~%" content)
-        (format t "-----------------------------------------------~%")))))
+        (print-content content)))))
   
 
 (defstruct command
