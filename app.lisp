@@ -8,7 +8,6 @@
 (in-package :clnote/app)
 
 
-
 (defparameter default-clnote-name "clnote")
 
 
@@ -38,7 +37,7 @@
         (format t "  * no note ~S in topic ~(~A~)~%" number topic))))
 
 
-(defun print-notes (topic number)
+(defun print-notes (topic &optional number)
   "View all notes for specific topic."
   (cond (number (print-note topic number))
         (t 
@@ -87,27 +86,27 @@
            :long "all"))
   (multiple-value-bind (options free-args)
       (opts:get-opts args)
-    (when (getf options :help)
-      (print-view-usage)
-      (return-from run-view))
-    (when (getf options :all)
-      (db:load-notes)
-      (let ((started nil))
-        (dolist (topic-info (db:get-tags))
-          (if (not started)
-              (setf started t)
-              (format t "~%"))
-          (print-notes (getf topic-info :tag) nil)))
-      (return-from run-view))
-    (let ((topic-str (first free-args))
-          (topic-number (safe-read-from-string (second free-args))))
-      (declare (type (or string null) topic-str))
-      (db:load-notes)
-      ;; add args check because when args are NIL
-      ;; unix-opts is going to implicitly use unix-opts:argv
-      (if (and args topic-str)
-          (print-notes (read-from-string topic-str) topic-number)
-          (print-topics)))))
+    (cond
+      ((getf options :help)
+       (print-view-usage))
+      ((getf options :all)
+       (db:load-notes)
+       (let ((started nil))
+         (dolist (topic-info (db:get-tags))
+           (if (not started)
+               (setf started t)
+               (format t "~%"))
+           (print-notes (getf topic-info :tag) nil))))
+      (t 
+       (let ((topic-str (first free-args))
+             (topic-number (safe-read-from-string (second free-args))))
+         (declare (type (or string null) topic-str))
+         (db:load-notes)
+         ;; add args check because when args are NIL
+         ;; unix-opts is going to implicitly use unix-opts:argv
+         (if (and args topic-str)
+             (print-notes (read-from-string topic-str) topic-number)
+             (print-topics)))))))
 
 
 ;; add 
@@ -136,22 +135,24 @@
            :meta-var "CONTENT"))
   (multiple-value-bind (options free-args)
       (opts:get-opts args)
-    (when (getf options :help)
-      (print-add-usage))
-    (let ((topic-arg (first free-args))
-          (content (getf options :content)))
-      (unless (and topic-arg content)
-        (format t "  * Incorrect number of arguments~%")
-        (return-from run-add))
-      (let ((topic (read-from-string topic-arg)))
-        (unless (symbolp topic)
-          (format t "  * Incorrect format of topic argument~%")
-          (return-from run-add))
-        (load-notes)
-        (add-note (make-note topic content))
-        (store-notes)
-        (format t "  v added to ~A~%~%" topic-arg)
-        (print-content content)))))
+    (cond
+      ((getf options :help)
+       (print-add-usage))
+      (t  
+       (let ((topic-arg (first free-args))
+             (content (getf options :content)))
+         (unless (and topic-arg content)
+           (format t "  * Incorrect number of arguments~%")
+           (return-from run-add))
+         (let ((topic (read-from-string topic-arg)))
+           (unless (symbolp topic)
+             (format t "  * Incorrect format of topic argument~%")
+             (return-from run-add))
+           (db:load-notes)
+           (add-note (make-note topic content))
+           (store-notes)
+           (format t "  v added to ~A~%~%" topic-arg)
+           (print-content content)))))))
   
 
 (defstruct command
