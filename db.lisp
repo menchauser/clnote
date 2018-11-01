@@ -16,14 +16,18 @@
 (local-time:enable-read-macros)
 
 
+(defparameter current-version 1)
+
+
 (defvar *notes* nil)
+
 
 (defparameter default-notes-path
   (merge-pathnames #P".clnote/notes"
                    (user-homedir-pathname)))
 
 
-;; constructors
+;; constructors and accessors
 (defun make-note (topic
                   note
                   &optional (timestamp (local-time:now)))
@@ -33,20 +37,28 @@ By default TIMESTAMP is now."
         :timestamp timestamp
         :text note))
 
-;; access
+
 (defun add-note (note)
-  (push note *notes*)
+  (when (not *notes*)
+    (init-notes-db)
+    (setf *notes*
+          (list :version current-version :notes nil)))
+  (push note (getf *notes* :notes))
   note)
+
+
+(defun get-all-notes () 
+  (getf *notes* :notes))
 
 
 (defun get-notes (topic)
   "Get all notes for specific topic."
-  (remove-if-not (lambda (note) (equal topic (getf note :topic))) *notes*))
+  (remove-if-not (lambda (note) (equal topic (getf note :topic))) (get-all-notes)))
 
 
 (defun get-topics ()
   "Get unique topic names and count of notes for each topic."
-  (let* ((topics (mapcar (lambda (x) (getf x :topic)) *notes*))
+  (let* ((topics (mapcar (lambda (x) (getf x :topic)) (get-all-notes)))
          (unique-topics (remove-duplicates topics)))
     (mapcar (lambda (x) (list :topic x :count (count x topics))) unique-topics)))
 
@@ -55,19 +67,20 @@ By default TIMESTAMP is now."
   "Remove notes for specific TOPIC."
   (labels ((to-remove-p (x)
              (eq topic (getf x :topic))))
-    (let ((count (count-if #'to-remove-p *notes*)))
-      (setf *notes* (remove-if #'to-remove-p *notes*))
+    (let ((count (count-if #'to-remove-p (get-all-notes))))
+      (setf (getf *notes* :notes) (remove-if #'to-remove-p (get-all-notes)))
       count)))
 
 
-(defun clear-notes ()
-  (setf *notes* nil))
+(defun init-notes-db ()
+  (setf *notes*
+        (list :version current-version :notes nil)))
 
 
 ;; output 
 (defun dump-notes ()
   "Dump notes in debug format."
-  (dolist (note *notes*)
+  (dolist (note (get-all-notes))
     (format t "~{~a:~12t~a~%~}~%" note)))
 
 
@@ -87,6 +100,12 @@ By default TIMESTAMP is now."
                       :direction :input
                       :if-does-not-exist nil)
     (if in
-        (setf *notes* (read in))
-        (setf *notes* nil)))
+        (let ((new-notes-db (read in)))
+          ;; upgrade old DB formats 
+          (cond
+            ((not (member :version new-notes-db))
+             (init-notes-db)
+             (setf (getf *notes* :notes) new-notes-db))
+            (t (setf *notes* new-notes-db))))
+        (init-notes-db)))
   *notes*)
