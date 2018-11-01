@@ -16,7 +16,7 @@
 (local-time:enable-read-macros)
 
 
-(defparameter current-version 1)
+(defparameter current-version 2)
 
 
 (defvar *notes* nil)
@@ -42,7 +42,11 @@ By default TIMESTAMP is now."
   (when (not *notes*)
     (init-notes-db)
     (setf *notes*
-          (list :version current-version :notes nil)))
+          (list :version current-version
+                :next-id 1
+                :notes nil)))
+  (setf (getf note :id)
+        (1- (incf (getf *notes* :next-id))))
   (push note (getf *notes* :notes))
   note)
 
@@ -94,6 +98,18 @@ By default TIMESTAMP is now."
     (pprint *notes* out))
   t)
 
+
+(defun assign-ids (notes start-id)
+  "Returns new NOTES with assigned identifiers and next identifier to be used."
+  (let* ((curr-id (1- start-id))
+         (result (mapcar #'(lambda (note)
+                             (progn
+                               (setf (getf note :id) (incf curr-id))
+                               note))
+                         (reverse notes))))
+    (values (reverse result) (1+ curr-id))))
+
+
 (defun load-notes (&optional (path default-notes-path))
   "Loads notes from given path."
   (with-open-file (in path
@@ -106,6 +122,13 @@ By default TIMESTAMP is now."
             ((not (member :version new-notes-db))
              (init-notes-db)
              (setf (getf *notes* :notes) new-notes-db))
+            ((< (getf new-notes-db :version) 2)
+             (multiple-value-bind (notes-with-id next-id)
+                 (assign-ids (getf new-notes-db :notes) 1)
+               (setf (getf new-notes-db :notes) notes-with-id)
+               (setf (getf new-notes-db :next-id) next-id)
+               (setf (getf new-notes-db :version) 2)
+               (setf *notes* new-notes-db)))
             (t (setf *notes* new-notes-db))))
         (init-notes-db)))
   *notes*)
