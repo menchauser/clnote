@@ -205,6 +205,9 @@
              (progn
                (when (y-or-n-p "Are you sure want to remove note ~A from topic ~(~A~)?" index topic)
                  (db:load-notes)
+                 (let* ((topic-notes (reverse (db:get-notes topic)))
+                        (id (getf (nth index topic-notes) :id)))
+                   (db:remove-note id))
                  (db:store-notes)))
              (format t "  * Incorrect number of arguments~%")))))))
 

@@ -8,6 +8,7 @@
            :get-topics
            :get-notes
            :remove-notes
+           :remove-note
            :store-notes
            :load-notes))
 
@@ -74,6 +75,14 @@ By default TIMESTAMP is now."
     (let ((count (count-if #'to-remove-p (get-all-notes))))
       (setf (getf *notes* :notes) (remove-if #'to-remove-p (get-all-notes)))
       count)))
+
+
+(defun remove-note (id)
+  "Remove specific note by ID."
+  (setf (getf *notes* :notes)
+        (remove-if #'(lambda (n)
+                       (equal (getf n :id) id))
+                   (get-all-notes))))
 
 
 (defun init-notes-db ()
