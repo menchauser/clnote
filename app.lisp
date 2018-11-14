@@ -17,6 +17,11 @@
       (read-from-string x)))
 
 
+(defun has-help-option (argv)
+  (intersection argv '("-h" "--help")
+                :test #'equal))
+
+
 ;; output utilities
 (defun print-topics ()
   "Print available topics."
@@ -59,27 +64,27 @@
 ;;;; commands
 
 ;; view
-(defun print-view-usage ()
-  (format t "List topics, notes or view a content~%~%")
-  (format t "Usage:~%")
-  (format t "  ~A view <topic name?> <note index?>~%~%" default-clnote-name)
-  (format t "Aliases:~%")
-  (format t "  view, v~%~%")
-  (format t "Examples:~%~%")
-  (format t "  * View all topics~%")
-  (format t "  ~A view~%" default-clnote-name)
-  (format t "  * List notes for a topic~%")
-  (format t "  ~A view lisp~%" default-clnote-name)
-  (format t "  * List all notes~%")
-  (format t "  ~A view --all~%" default-clnote-name))
+(defparameter view-usage
+  '("List topics, notes or view a content"
+    ""
+    "Usage:"
+    "  clnote view <topic name?> <note index?>"
+    ""
+    "Aliases:"
+    "  view, v"
+    ""
+    "Examples:"
+    ""
+    "  * View all topics"
+    "  clnote view"
+    "  * List notes for a topic"
+    "  clnote view lisp"
+    "  * List all notes"
+    "  clnote view --all"))
 
 
 (defun run-view (&rest args)
   (opts:define-opts
-    (:name :help
-           :description "show help"
-           :short #\h
-           :long "help")
     (:name :all
            :description "view all notes"
            :showrt #\a
@@ -87,8 +92,6 @@
   (multiple-value-bind (options free-args)
       (opts:get-opts args)
     (cond
-      ((getf options :help)
-       (print-view-usage))
       ((getf options :all)
        (db:load-notes)
        (let ((started nil))
@@ -109,23 +112,22 @@
 
 
 ;; add 
-(defun print-add-usage ()
-  (format t "Add a note to topic~%~%")
-  (format t "Usage:~%")
-  (format t "  ~A add <topic name> -c <content>~%~%" default-clnote-name)
-  (format t "Aliases:~%")
-  (format t "  add, a, new, n~%~%")
-  (format t "Examples:~%~%")
-  (format t "  * Add a simple note~%")
-  (format t "  ~A add lisp -c \"to parse multiple return values from a function use 'multiple-values-bind'\"~%" default-clnote-name)) 
+(defparameter add-usage
+  '("Add a note to topic"
+    ""
+    "Usage:"
+    "  clnote add <topic name> -c <content>"
+    ""
+    "Aliases:"
+    "  add, a, new, n"
+    ""
+    "Examples:"
+    "  * Add a simple note"
+    "  clnote add lisp -c \"to parse multiple return values from a function use 'multiple-values-bind'\""))
 
 
 (defun run-add (&rest args)
   (opts:define-opts
-    (:name :help
-           :description "show help"
-           :short #\h
-           :long "help")
     (:name :content
            :description "note content"
            :short #\c
@@ -135,8 +137,6 @@
   (multiple-value-bind (options free-args)
       (opts:get-opts args)
     (cond
-      ((getf options :help)
-       (print-add-usage))
       (t  
        (let ((topic-arg (first free-args))
              (content (getf options :content)))
@@ -155,29 +155,32 @@
 
 
 ;; remove
-(defun print-remove-usage ()
-  (format t "Remove a note or topic~%~%")
-  (format t "Usage:~%")
-  (format t "  ~A remove <topic name> <note index>~%" default-clnote-name)
-  (format t "  ~A remove -t <topic name>~%~%" default-clnote-name)
-  (format t "Aliases:~%")
-  (format t "  remove, rm, d, delete~%~%")
-  (format t "Examples:~%~%")
-  (format t "  * Delete a note by its index from a topic~%")
-  (format t "  ~A delete lisp 2~%~%" default-clnote-name)
-  (format t "  * Delete a whole topic~%")
-  (format t "  ~A delete -t lisp~%~%" default-clnote-name)
-  (format t "Flags:~%~%")
-  (format t "  -t, --topic string~22TTopic name to delete~%")
-  (format t "  -h, --help        ~22THelp for remove~%"))
+(defparameter remove-usage
+  '("Remove a note or topic"
+    ""
+    "Usage:"
+    "  clnote remove <topic name> <note index>"
+    "  clnote remove -t <topic name>"
+    ""
+    "Aliases:"
+    "  remove, rm, d, delete"
+    ""
+    "Examples:"
+    ""
+    "  * Delete a note by its index from a topic"
+    "  clnote delete lisp 2"
+    ""
+    "  * Delete a whole topic"
+    "  clnote delete -t lisp"
+    ""
+    "Flags:"
+    ""
+    "  -t, --topic string~22TTopic name to delete"
+    "  -h, --help        ~22THelp for remove"))
 
 
 (defun run-remove (&rest args)
   (opts:define-opts
-    (:name :help
-           :description "show help"
-           :short #\h
-           :long "help")
     (:name :topic
            :description "topic name to delete"
            :short #\t
@@ -187,8 +190,6 @@
   (multiple-value-bind (options free-args)
       (opts:get-opts args)
     (cond
-      ((getf options :help)
-       (print-remove-usage))
       ((getf options :topic)
        (let ((topic (getf options :topic)))
          (when (y-or-n-p "Are you sure want to remove whole topic ~(~A~)?" topic)
@@ -216,21 +217,24 @@
   (id nil :read-only t :type symbol)
   (description nil :read-only t :type string)
   (names nil :read-only t :type cons)
-  (action nil :read-only t :type function))
+  (action nil :read-only t :type function)
+  (usage nil :read-only t :type cons))
 
 
-(defparameter commands
+(defparameter *commands*
   (list
    (make-command
     :id 'add
     :description "Add new note to a topic"
     :names '("add" "a" "new" "n")
-    :action #'run-add)
+    :action #'run-add
+    :usage add-usage)
    (make-command
     :id 'view
     :description "List topics or notes"
     :names '("view" "v")
-    :action #'run-view)))
+    :action #'run-view
+    :usage view-usage)))
 
 
 (defun parse-cmd (name)
@@ -239,7 +243,7 @@
     ((null name) nil)
     (t (find-if #'(lambda (x)
                     (member name (command-names x) :test #'equal))
-                commands))))
+                *commands*))))
 
 
 (defun run-cmd (cmd args)
@@ -251,19 +255,29 @@
   (format t "Usage:~%")
   (format t "  ~A [command] [options]~%~%" program)
   (format t "Available commands:~%")
-  (dolist (cmd commands)
+  (dolist (cmd *commands*)
     (format t "  ~A~16T~A~%"
             (string-downcase (symbol-name (command-id cmd)))
             (command-description cmd))))
+
+(defun print-cmd-usage (cmd)
+  (dolist (usage-line (command-usage cmd))
+    (format t "~A~%" usage-line)))
+
   
 (defun main- (program argv)
   (let* ((cmd-name (first argv))
          (cmd (parse-cmd cmd-name)))
     (cond
-      ((null cmd-name) (print-usage program))
-      (cmd
-       (run-cmd cmd (rest argv)))
-      ((member "-h" argv :test #'equal) (print-usage program))
+      ((null cmd-name)
+       (print-usage program))
+      (cmd ;; when command argument is defined
+       (if (has-help-option argv)
+           ;; print usage when -h argument is given
+           (print-cmd-usage cmd)
+           (run-cmd cmd (rest argv))))
+      ((has-help-option argv)
+       (print-usage program))
       (t
        (format t "  * unknown command ~S for ~S~%"
                cmd-name program)
