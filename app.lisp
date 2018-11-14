@@ -175,8 +175,8 @@
     ""
     "Flags:"
     ""
-    "  -t, --topic string~22TTopic name to delete"
-    "  -h, --help        ~22THelp for remove"))
+    "  -t, --topic string  Topic name to delete"
+    "  -h, --help          Help for remove"))
 
 
 (defun run-remove (&rest args)
@@ -234,7 +234,13 @@
     :description "List topics or notes"
     :names '("view" "v")
     :action #'run-view
-    :usage view-usage)))
+    :usage view-usage)
+   (make-command
+    :id 'remove
+    :description "Remove a note or topic within note"
+    :names '("remove" "rm" "delete" "d")
+    :action #'run-remove
+    :usage remove-usage)))
 
 
 (defun parse-cmd (name)
