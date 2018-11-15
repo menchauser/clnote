@@ -204,12 +204,16 @@
                   (symbolp topic)
                   (numberp index))
              (progn
-               (when (y-or-n-p "Are you sure want to remove note ~A from topic ~(~A~)?" index topic)
-                 (db:load-notes)
-                 (let* ((topic-notes (reverse (db:get-notes topic)))
-                        (id (getf (nth index topic-notes) :id)))
-                   (db:remove-note id))
-                 (db:store-notes)))
+               (db:load-notes)
+               (let* ((topic-notes (reverse (db:get-notes topic)))
+                      (note-to-remove (nth index topic-notes)))
+                 (if note-to-remove
+                     (progn
+                       (print-content (getf note-to-remove :text))
+                       (when (y-or-n-p "Are you sure want to remove note ~A from topic ~(~A~)?" index topic)
+                         (db:remove-note (getf note-to-remove :id))
+                         (db:store-notes)))
+                     (format t "Topic ~(~A~) has no note ~A~%" topic index))))
              (format t "  * Incorrect number of arguments~%")))))))
 
 
