@@ -4,7 +4,8 @@
   :author "Mukhamed Karanashev <menchauser@gmail.com>"
   :license "MIT License"
   :depends-on ("local-time"
-               "unix-opts")
+               "unix-opts"
+               "uiop")
   :serial t
   :components ((:file "db")
                (:file "app"))

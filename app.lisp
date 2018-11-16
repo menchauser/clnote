@@ -1,7 +1,8 @@
 (defpackage :clnote/app
   (:use :common-lisp
         :clnote/db
-        :unix-opts)
+        :unix-opts
+        :uiop)
   (:shadow unix-opts:describe)
   (:export :main))
 
@@ -12,7 +13,7 @@
 
 
 ;;;; common utilities
-(defun safe-read-from-string (x)
+(defun read-from-string-or-nil (x)
   (when x
       (read-from-string x)))
 
@@ -22,7 +23,46 @@
                 :test #'equal))
 
 
-;; output utilities
+(defun trim-space (string)
+  "Trims space characters from beginning and end of STRING."
+  (string-trim '(#\Space #\Tab #\Newline) string))
+
+
+(defun string-blank-p (string)
+  "Checks if STRING is blank (NIL, empty or consists only of space characters"
+  (or (not string)
+      (= 0 (length (trim-space string)))))
+
+
+;;;; work with external editor
+(defun get-editor-cmd (filename)
+  (let* ((editor (uiop:getenv "EDITOR"))
+         (resolved-editor-cmd
+          (cond ((equal editor "vim") '("vim"))
+                (t '("vi")))))
+    ;; formatting to string is required to convert pathname to
+    ;; acceptable format as CLI argument
+    (append resolved-editor-cmd (list (format nil "~A" filename)))))
+
+
+(defun run-editor ()
+  (uiop:with-temporary-file (:pathname path :keep nil :prefix "clnote")
+    (let ((cmd (get-editor-cmd path)))
+      (multiple-value-bind (output error-output result)
+          (uiop:run-program cmd
+                            :input :interactive
+                            :output :interactive
+                            :error-output :interactive)
+        (declare (ignore output)
+                 (ignore error-output))
+        (when (zerop result)
+          ;; strange behaviour: there's always one more newline symbol
+          ;; at the end of the read text so we remove it
+          (string-right-trim '(#\Newline) 
+                             (read-file-string path)))))))
+
+
+;;;; output utilities
 (defun print-topics ()
   "Print available topics."
   (dolist (topic (db:get-topics))
@@ -101,8 +141,8 @@
                (format t "~%"))
            (print-notes (getf topic-info :topics) nil))))
       (t 
-       (let ((topic (safe-read-from-string (first free-args)))
-             (index (safe-read-from-string (second free-args))))
+       (let ((topic (read-from-string-or-nil (first free-args)))
+             (index (read-from-string-or-nil (second free-args))))
          (db:load-notes)
          ;; add args check because when args are NIL
          ;; unix-opts is going to implicitly use unix-opts:argv
@@ -127,31 +167,42 @@
 
 
 (defun run-add (&rest args)
-  (opts:define-opts
-    (:name :content
-           :description "note content"
-           :short #\c
-           :long "content"
-           :arg-parser #'identity
-           :meta-var "CONTENT"))
-  (multiple-value-bind (options free-args)
-      (opts:get-opts args)
-    (cond
-      (t  
-       (let ((topic-arg (first free-args))
-             (content (getf options :content)))
-         (unless (and topic-arg content)
-           (format t "  * Incorrect number of arguments~%")
-           (return-from run-add))
-         (let ((topic (read-from-string topic-arg)))
-           (unless (symbolp topic)
-             (format t "  * Incorrect format of topic argument~%")
-             (return-from run-add))
-           (db:load-notes)
-           (db:add-note (db:make-note topic content))
-           (db:store-notes)
-           (format t "  v added to ~A~%~%" topic-arg)
-           (print-content content)))))))
+  (labels
+      ((perform-add (topic content)
+         (db:load-notes)
+         (db:add-note (db:make-note topic content))
+         (db:store-notes)
+         (format t "  v added to ~(~A~)~%~%" topic)
+         (print-content content)))
+    (opts:define-opts
+      (:name :content
+             :description "note content"
+             :short #\c
+             :long "content"
+             :arg-parser #'identity
+             :meta-var "CONTENT"))
+    (multiple-value-bind (options free-args)
+        (opts:get-opts args)
+      (let ((topic-arg (first free-args))
+            (content (getf options :content)))
+        (unless topic-arg
+          (format t "  * Incorrect number of arguments (topic must be present)~%")
+          (return-from run-add))
+        (let ((topic (read-from-string topic-arg)))
+          (unless (symbolp topic)
+            (format t "  * Incorrect format of topic argument~%")
+            (return-from run-add))
+          ;; if content is given via -c key - use it
+          ;; otherwise: run editor and get result from one
+          ;; do not create note when given empty string
+          (if content
+              (if (string-blank-p content)
+                  (format t "  * Incorrect: note text is empty~%")
+                  (perform-add topic content))
+              (let ((external-content (run-editor)))
+                (if (string-blank-p external-content)
+                    (format t "  * Incorrect: note text is empty~%")
+                    (perform-add topic external-content)))))))))
 
 
 ;; remove
@@ -198,8 +249,8 @@
              (db:store-notes)
              (format t "Topic '~(~A~)' with ~A notes removed" topic removed-count)))))
       (t
-       (let ((topic (safe-read-from-string (first free-args)))
-             (index (safe-read-from-string (second free-args))))
+       (let ((topic (read-from-string-or-nil (first free-args)))
+             (index (read-from-string-or-nil (second free-args))))
          (if (and args
                   (symbolp topic)
                   (numberp index))
@@ -269,6 +320,7 @@
     (format t "  ~A~16T~A~%"
             (string-downcase (symbol-name (command-id cmd)))
             (command-description cmd))))
+
 
 (defun print-cmd-usage (cmd)
   (dolist (usage-line (command-usage cmd))
